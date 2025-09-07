@@ -79,27 +79,5 @@ To destroy all resources created by this project:
 terraform destroy
 
 
-+---------------------------------------------------+
-|              Resource Group (rg-core)             |
-|                                                   |
-|  +-------------------+       +-----------------+  |
-|  | Virtual Network   |       | Network Security|  |
-|  | (vnet-core)       |       | Group (nsg-core)|  |
-|  |   +-----------+   |       +-----------------+  |
-|  |   | Subnet    |<--------> NSG Rules           |
-|  |   | (subnet)  |   |                          |
-|  |   +-----------+   |                          |
-|  +-------------------+                          |
-|                                                   |
-|  +---------------------------------------------+  |
-|  | Network Interface (nic-core)                |  |
-|  |   +-------------------------------------+   |  |
-|  |   | Linux VM (vm-core)                  |   |  |
-|  |   |  Public IP -> (pip-core)            |   |  |
-|  |   +-------------------------------------+   |  |
-|  +---------------------------------------------+  |
-|                                                   |
-+---------------------------------------------------+
-
 
 <img width="390" height="454" alt="image" src="https://github.com/user-attachments/assets/2d936b04-0fb9-4796-bc10-cd95fe15def5" />
