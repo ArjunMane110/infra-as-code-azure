@@ -1,0 +1,8 @@
+subscription_id = "<subscription-id>"
+tenant_id       = "<tenant-id>"
+location        = "East US"
+environment     = "dev"
+admin_username  = "azureuser"
+ssh_public_key  = "~/.ssh/id_rsa.pub"
+vm_size         = "Standard_B1s"
+host_os         = "linux"
