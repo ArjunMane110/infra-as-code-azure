@@ -100,3 +100,6 @@ terraform destroy
 |  +---------------------------------------------+  |
 |                                                   |
 +---------------------------------------------------+
+
+
+<img width="390" height="454" alt="image" src="https://github.com/user-attachments/assets/2d936b04-0fb9-4796-bc10-cd95fe15def5" />
