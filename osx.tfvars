@@ -6,3 +6,6 @@ admin_username  = "azureuser"
 ssh_public_key  = "~/.ssh/id_ed25519.pub" # common on macOS
 vm_size         = "Standard_B1s"
 host_os         = "osx"
+vm_size             = "Standard_B2ms"
+admin_username      = "localadmin"
+admin_password      = "MySecureP@ssw0rd!"
