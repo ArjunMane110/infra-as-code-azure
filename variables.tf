@@ -44,18 +44,18 @@ variable "host_os" {
   default     = "linux"
 }
 
-variable "vm_size" {
+variable "windows_vm_size" {
   description = "Size of the virtual machine"
   type        = string
   default     = "Standard_B2s"
 }
 
-variable "admin_username" {
+variable "windows_admin_username" {
   description = "Admin username for the VM"
   type        = string
 }
 
-variable "admin_password" {
+variable "windows_admin_password" {
   description = "Admin password for the VM"
   type        = string
   sensitive   = true
