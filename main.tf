@@ -149,16 +149,15 @@ output "public_ip_address" {
   value = data.azurerm_public_ip.public_ip_data.ip_address
 }
 
+# Windows Virtual Machine
 resource "azurerm_windows_virtual_machine" "vm" {
-  name                = "winvm01"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = "Standard_B2s"
-  admin_username      = "azureuser"
-  admin_password      = "P@ssword1234!"
-  network_interface_ids = [
-    azurerm_network_interface.nic.id
-  ]
+  name                  = "winvm01"
+  resource_group_name   = azurerm_resource_group.rg.name
+  location              = azurerm_resource_group.rg.location
+  size                  = "Standard_B2s"
+  admin_username        = var.windows_admin_username
+  admin_password        = var.windows_admin_password
+  network_interface_ids = [azurerm_network_interface.nic.id]
 
   os_disk {
     name                 = "winvm-osdisk"
@@ -172,6 +171,4 @@ resource "azurerm_windows_virtual_machine" "vm" {
     sku       = "2022-datacenter-g2"
     version   = "latest"
   }
-
-  enable_automatic_updates = true
 }
