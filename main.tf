@@ -9,33 +9,37 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "<subscription-id>"
-  tenant_id       = "<tenant-id>"
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
 }
 
+# -------------------------
 # Resource Group
+# -------------------------
 resource "azurerm_resource_group" "rg" {
   name     = "rg-core"
-  location = "East US"
+  location = var.location
 
   tags = {
-    environment = "dev"
+    environment = var.environment
+    managed_by = "terraform"
   }
 }
 
-# Virtual Network
+# -------------------------
+# Networking
+# -------------------------
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet-core"
-  resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
   address_space       = ["10.12.0.0/16"]
 
   tags = {
-    environment = "dev"
+    environment = var.environment
   }
 }
 
-# Subnet
 resource "azurerm_subnet" "subnet" {
   name                 = "subnet-core"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -43,53 +47,72 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.12.1.0/24"]
 }
 
-# Network Security Group
+# -------------------------
+# NSG
+# -------------------------
 resource "azurerm_network_security_group" "nsg" {
   name                = "nsg-core"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
-  tags = {
-    environment = "dev"
-  }
 }
 
-# Security Rule
-resource "azurerm_network_security_rule" "nsg_rule" {
-  name                        = "nsg-rule-allow-all"
+# SSH
+resource "azurerm_network_security_rule" "ssh" {
+  name                        = "allow-ssh"
   priority                    = 100
   direction                   = "Inbound"
   access                      = "Allow"
-  protocol                    = "*"
+  protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_range      = "*"
+  destination_port_range      = "22"
   source_address_prefix       = "*"
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.nsg.name
 }
 
-# NSG Association
-resource "azurerm_subnet_network_security_group_association" "subnet_nsg_assoc" {
+# RDP
+resource "azurerm_network_security_rule" "rdp" {
+  name                        = "allow-rdp"
+  priority                    = 110
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "3389"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.rg.name
+  network_security_group_name = azurerm_network_security_group.nsg.name
+}
+
+resource "azurerm_subnet_network_security_group_association" "subnet_assoc" {
   subnet_id                 = azurerm_subnet.subnet.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-# Public IP
-resource "azurerm_public_ip" "public_ip" {
-  name                = "pip-core"
+# -------------------------
+# Public IPs
+# -------------------------
+resource "azurerm_public_ip" "linux_pip" {
+  name                = "pip-linux"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Dynamic"
-
-  tags = {
-    environment = "dev"
-  }
 }
 
-# Network Interface
-resource "azurerm_network_interface" "nic" {
-  name                = "nic-core"
+resource "azurerm_public_ip" "windows_pip" {
+  name                = "pip-windows"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Dynamic"
+}
+
+# -------------------------
+# NICs (one per VM — required)
+# -------------------------
+resource "azurerm_network_interface" "linux_nic" {
+  name                = "nic-linux"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -97,32 +120,44 @@ resource "azurerm_network_interface" "nic" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.public_ip.id
-  }
-
-  tags = {
-    environment = "dev"
+    public_ip_address_id          = azurerm_public_ip.linux_pip.id
   }
 }
 
-# Linux Virtual Machine
-resource "azurerm_linux_virtual_machine" "vm" {
-  name                  = "vm-core"
-  resource_group_name   = azurerm_resource_group.rg.name
-  location              = azurerm_resource_group.rg.location
-  size                  = "Standard_B1s"
-  admin_username        = "azureuser"
-  network_interface_ids = [azurerm_network_interface.nic.id]
+resource "azurerm_network_interface" "windows_nic" {
+  name                = "nic-windows"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
 
-  # Optional cloud-init or custom data script
-  # custom_data = filebase64("cloud-init.tpl")
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.windows_pip.id
+  }
+}
+
+# -------------------------
+# Linux VM
+# -------------------------
+resource "azurerm_linux_virtual_machine" "linux_vm" {
+  name                = "vm-linux"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  size                = var.linux_vm_size
+  admin_username      = var.linux_admin_username
+
+  network_interface_ids = [
+    azurerm_network_interface.linux_nic.id
+  ]
 
   admin_ssh_key {
-    username   = "azureuser"
-    public_key = file("~/.ssh/id_rsa.pub")
+    username   = var.linux_admin_username
+    public_key = file(var.ssh_public_key_path)
   }
 
   os_disk {
+    name                 = "linux-osdisk"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -135,32 +170,27 @@ resource "azurerm_linux_virtual_machine" "vm" {
   }
 
   tags = {
-    environment = "dev"
+    environment = var.environment
   }
 }
 
-# Data source for Public IP
-data "azurerm_public_ip" "public_ip_data" {
-  name                = azurerm_public_ip.public_ip.name
+# -------------------------
+# Windows VM
+# -------------------------
+resource "azurerm_windows_virtual_machine" "windows_vm" {
+  name                = "vm-windows"
   resource_group_name = azurerm_resource_group.rg.name
-}
+  location            = azurerm_resource_group.rg.location
+  size                = var.windows_vm_size
+  admin_username      = var.windows_admin_username
+  admin_password      = var.windows_admin_password
 
-output "public_ip_address" {
-  value = data.azurerm_public_ip.public_ip_data.ip_address
-}
-
-# Windows Virtual Machine
-resource "azurerm_windows_virtual_machine" "vm" {
-  name                  = "winvm01"
-  resource_group_name   = azurerm_resource_group.rg.name
-  location              = azurerm_resource_group.rg.location
-  size                  = "Standard_B2s"
-  admin_username        = var.windows_admin_username
-  admin_password        = var.windows_admin_password
-  network_interface_ids = [azurerm_network_interface.nic.id]
+  network_interface_ids = [
+    azurerm_network_interface.windows_nic.id
+  ]
 
   os_disk {
-    name                 = "winvm-osdisk"
+    name                 = "windows-osdisk"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -171,4 +201,52 @@ resource "azurerm_windows_virtual_machine" "vm" {
     sku       = "2022-datacenter-g2"
     version   = "latest"
   }
+
+  tags = {
+    environment = var.environment
+  }
+}
+
+# -------------------------
+# Windows VM 2
+# -------------------------
+resource "azurerm_windows_virtual_machine" "windows_vm_2" {
+  name                = "vm-windows-2"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  size                = var.windows_vm_size
+  admin_username      = var.windows_admin_username
+  admin_password      = var.windows_admin_password
+
+  network_interface_ids = [
+    azurerm_network_interface.windows_nic.id
+  ]
+
+  os_disk {
+    name                 = "windows-osdisk"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2022-datacenter-g2"
+    version   = "latest"
+  }
+
+  tags = {
+    environment = var.environment
+  }
+}
+
+# -------------------------
+# Outputs
+# -------------------------
+output "linux_public_ip" {
+  value = azurerm_public_ip.linux_pip.ip_address
+}
+
+output "windows_public_ip" {
+  value = azurerm_public_ip.windows_pip.ip_address
 }
